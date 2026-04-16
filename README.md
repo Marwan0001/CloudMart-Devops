@@ -85,11 +85,3 @@ npm run dev
 | PUT    | /api/cart/:productId   | Update quantity               |
 | DELETE | /api/cart/:productId   | Remove item                   |
 | GET    | /health                | Health check                  |
-
-## Next Steps (DevOps practice ideas)
-
-- Add a Dockerfile for each service
-- Add a `docker-compose.yml` to run both together
-- Add a CI/CD pipeline (GitHub Actions)
-- Swap in-memory data for MongoDB or PostgreSQL
-- Deploy to a cloud provider (AWS, GCP, Azure)
