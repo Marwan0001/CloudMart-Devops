@@ -34,8 +34,9 @@ pipeline {
 
         stage('Test') {
             steps {
-                // Validate that the built frontend image has a valid nginx configuration.
-                sh "docker run --rm --entrypoint nginx ${FRONTEND_IMAGE}:${GIT_COMMIT} -t"
+                // Validate the frontend inside a real Compose network so nginx can resolve the backend upstream.
+                sh "docker compose up -d backend frontend"
+                sh "docker compose exec -T frontend sh -lc \"wget -qO- http://127.0.0.1/api/products >/dev/null\""
             }
         }
 
