@@ -9,7 +9,7 @@ pipeline {
         // We will pull this credential securely from Jenkins
         DOCKER_CREDS_ID = 'docker-hub-credentials' 
         // Tags the image with the specific Jenkins run number (e.g., v1, v2)
-        IMAGE_TAG = "v${1}" 
+        IMAGE_TAG = "v${2}" 
     }
 
     stages {
