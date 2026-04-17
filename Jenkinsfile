@@ -42,8 +42,8 @@ pipeline {
 
         stage('Create Deployment Package') {
             steps {
-                // Package only the production Compose file and exclude the obsolete Dockerrun file.
-                sh "zip -r deploy.zip docker-compose.yml -x '*.git*' 'Dockerrun.aws.json'"
+                // Ensure zip is installed on your Jenkins agent
+                sh "zip -r deploy.zip . -x '*.git*'"
             }
         }
 
