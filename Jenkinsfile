@@ -29,12 +29,11 @@ pipeline {
             parallel {
                 stage('Build Backend') {
                     steps {
-                        sh "docker build -t ${DOCKER_HUB_USER}/cloudmart-backend:${IMAGE_TAG} -t ${DOCKER_HUB_USER}/cloudmart-backend:latest -f backend/Dockerfile ."
-                    }
+                        sh "docker build -t ${DOCKER_HUB_USER}/cloudmart-backend:${IMAGE_TAG} -t ${DOCKER_HUB_USER}/cloudmart-backend:latest backend/"                    }
                 }
                 stage('Build Frontend') {
                     steps {
-                        sh "docker build -t ${DOCKER_HUB_USER}/cloudmart-frontend:${IMAGE_TAG} -t ${DOCKER_HUB_USER}/cloudmart-frontend:latest -f frontend/Dockerfile ."
+                        sh "docker build -t ${DOCKER_HUB_USER}/cloudmart-frontend:${IMAGE_TAG} -t ${DOCKER_HUB_USER}/cloudmart-frontend:latest frontend/"
                     }
                 }
             }
