@@ -3,7 +3,7 @@
   "containerDefinitions": [
     {
       "name": "frontend",
-      "image": "ahmedgamil/react-frontend:latest",
+      "image": "marwanmw/cloudmart-frontend:latest",
       "essential": true,
       "memory": 256,
       "portMappings": [
@@ -15,7 +15,7 @@
     },
     {
       "name": "backend",
-      "image": "ahmedgamil/node-backend:latest",
+      "image": "marwanmw/cloudmart-backend:latest",
       "essential": true,
       "memory": 256,
       "portMappings": [
