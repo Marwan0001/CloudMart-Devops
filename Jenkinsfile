@@ -4,30 +4,31 @@ pipeline {
     }
 
     environment {
-        // Define your variables here to keep the code clean
         DOCKER_HUB_USER = 'marwanmw'
-        // We will pull this credential securely from Jenkins
         DOCKER_CREDS_ID = 'docker-hub-credentials' 
-        // Tags the image with the specific Jenkins run number (e.g., v1, v2)
-        IMAGE_TAG = "v${2}" 
+        IMAGE_TAG = "v${BUILD_NUMBER}" 
+        
+        // AWS Variables
+        AWS_REGION = "us-east-1" 
+        S3_BUCKET = "cloudmart-deployments-bucket"
+        EB_APP_NAME = "CloudMart"
+        EB_BACKEND_ENV = "cloudmart-backend-env"
+        EB_FRONTEND_ENV = "cloudmart-frontend-env"
     }
 
     stages {
         stage('Docker Hub Login') {
             steps {
-                // Securely injects Docker Hub username and password
                 withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS_ID}", passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                     sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
                 }
             }
         }
 
-        stage('Build Imagess') {
-            // 'parallel' tells Jenkins to build backend and frontend at the exact same time
+        stage('Build Images') {
             parallel {
                 stage('Build Backend') {
                     steps {
-                        // We tag it twice: once with the build number, and once as 'latest'
                         sh "docker build -t ${DOCKER_HUB_USER}/cloudmart-backend:${IMAGE_TAG} -t ${DOCKER_HUB_USER}/cloudmart-backend:latest -f backend/Dockerfile ."
                     }
                 }
@@ -56,15 +57,83 @@ pipeline {
             }
         }
 
+        stage('Deploy to AWS Elastic Beanstalk') {
+            parallel {
+                stage('Deploy Backend') {
+                    steps {
+                        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                            sh """
+                            cat <<EOF > Dockerrun-backend.aws.json
+                            {
+                              "AWSEBDockerrunVersion": "1",
+                              "Image": {
+                                "Name": "${DOCKER_HUB_USER}/cloudmart-backend:${IMAGE_TAG}",
+                                "Update": "true"
+                              },
+                              "Ports": [{"ContainerPort": 5000}]
+                            }
+                            EOF
+                            
+                            zip backend-deploy.zip Dockerrun-backend.aws.json
+                            aws s3 cp backend-deploy.zip s3://${S3_BUCKET}/backend-v${BUILD_NUMBER}.zip
+                            
+                            aws elasticbeanstalk create-application-version \
+                                --region ${AWS_REGION} \
+                                --application-name "${EB_APP_NAME}" \
+                                --version-label "backend-v${BUILD_NUMBER}" \
+                                --source-bundle S3Bucket="${S3_BUCKET}",S3Key="backend-v${BUILD_NUMBER}.zip"
+                            
+                            aws elasticbeanstalk update-environment \
+                                --region ${AWS_REGION} \
+                                --application-name "${EB_APP_NAME}" \
+                                --environment-name "${EB_BACKEND_ENV}" \
+                                --version-label "backend-v${BUILD_NUMBER}"
+                            """
+                        }
+                    }
+                }
+                
+                stage('Deploy Frontend') {
+                    steps {
+                        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                            sh """
+                            cat <<EOF > Dockerrun-frontend.aws.json
+                            {
+                              "AWSEBDockerrunVersion": "1",
+                              "Image": {
+                                "Name": "${DOCKER_HUB_USER}/cloudmart-frontend:${IMAGE_TAG}",
+                                "Update": "true"
+                              },
+                              "Ports": [{"ContainerPort": 80}]
+                            }
+                            EOF
+                            
+                            zip frontend-deploy.zip Dockerrun-frontend.aws.json
+                            aws s3 cp frontend-deploy.zip s3://${S3_BUCKET}/frontend-v${BUILD_NUMBER}.zip
+                            
+                            aws elasticbeanstalk create-application-version \
+                                --region ${AWS_REGION} \
+                                --application-name "${EB_APP_NAME}" \
+                                --version-label "frontend-v${BUILD_NUMBER}" \
+                                --source-bundle S3Bucket="${S3_BUCKET}",S3Key="frontend-v${BUILD_NUMBER}.zip"
+                            
+                            aws elasticbeanstalk update-environment \
+                                --region ${AWS_REGION} \
+                                --application-name "${EB_APP_NAME}" \
+                                --environment-name "${EB_FRONTEND_ENV}" \
+                                --version-label "frontend-v${BUILD_NUMBER}"
+                            """
+                        }
+                    }
+                }
+            }
+        }
+        
         stage('Deploy (Local Docker Run)') {
             steps {
                 script {
-                    // 1. CLEANUP: The '|| true' command is a magic trick. 
-                    // It tells Jenkins: "Try to delete the container. If it doesn't exist yet, don't crash the pipeline, just keep going."
                     sh 'docker rm -f cloudmart-frontend || true'
                     sh 'docker rm -f cloudmart-backend || true'
-
-                    // 2. RUN: Start the new containers using the fresh 'latest' image
                     sh "docker run -d -p 5000:5000 --name cloudmart-backend ${DOCKER_HUB_USER}/cloudmart-backend:latest"
                     sh "docker run -d -p 3000:3000 --name cloudmart-frontend ${DOCKER_HUB_USER}/cloudmart-frontend:latest"
                 }
@@ -72,7 +141,6 @@ pipeline {
         }
     }
     
-    // Always clean up the Docker login after the pipeline finishes (success or fail)
     post {
         always {
             sh 'docker logout'
