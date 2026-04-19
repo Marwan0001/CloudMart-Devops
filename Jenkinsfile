@@ -19,8 +19,8 @@ pipeline{
     }
         stage('build'){
             steps{
-                sh 'docker build -t ${DOCKER_IMAGE_BACK}:latest ./backend/'
-                sh 'docker build -t ${DOCKER_IMAGE_FRONT}:latest ./frontend/'
+                sh 'docker build -t ${DOCKER_IMAGE_BACK}:${BUILD_NUMBER} -t ${DOCKER_IMAGE_BACK}:latest ./backend/'
+                sh 'docker build -t ${DOCKER_IMAGE_FRONT}:${BUILD_NUMBER} -t ${DOCKER_IMAGE_FRONT}:latest ./frontend/'
             }
         }
         // stage('login to docker hub'){
@@ -33,10 +33,14 @@ pipeline{
         // }
         stage('push to docker hub'){
             steps{
+                script{
                 docker.withRegistry('', 'docker-hub-credentials'){
+                sh 'docker push ${DOCKER_IMAGE_FRONT}:${BUILD_NUMBER}'
+                sh 'docker push ${DOCKER_IMAGE_BACK}:${BUILD_NUMBER}'
                 sh 'docker push ${DOCKER_IMAGE_FRONT}:latest'
                 sh 'docker push ${DOCKER_IMAGE_BACK}:latest'
             }
+                }
             }
         }
         stage('package deployment instructions'){
@@ -44,17 +48,18 @@ pipeline{
                 sh 'zip deploy.zip Dockerrun.aws.json'
             }
         }
-        stage('Upload to S3 (The Artifactory)') {
-            steps {
-                sh "aws s3 cp deploy.zip s3://${S3_BUCKET}/deploy-build-${BUILD_NUMBER}.zip"
-            }
-        }
+        // stage('Upload to S3 (The Artifactory)') {
+        //     steps {
+        //     }
+        // }
         stage('Deploy to Elastic Beanstalk') {
             steps {
                 withCredentials([
                     string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'), 
                     string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
+
+                    sh "aws s3 cp deploy.zip s3://${S3_BUCKET}/deploy-build-${BUILD_NUMBER}.zip"
                     sh """
                         aws elasticbeanstalk create-application-version \
                         --region ${AWS_REGION} \
