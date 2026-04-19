@@ -12,15 +12,8 @@ pipeline{
     stages{
         stage('Test'){
             steps{
-                dir('backend') {
-                    sh 'npm install'
-                }
-                dir('frontend') {
-                    sh 'npm install'
-                    sh 'npm run build'
-                }
-            }
-        }
+                sh 'docker build -f backend/Dockerfile.test -t backend-test-image ./backend/'        }
+                sh 'docker run --rm backend-test-image'
         stage('build'){
             steps{
                 sh 'docker build -t ${DOCKER_IMAGE_BACK}:latest ./backend/'
