@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    image: marwanmw/cloudmart-backend:${BUILD_NUMBER}
+    image: marwanmw/cloudmart-backend:__BUILD_NUMBER__
     ports:
       - "5000:5000"
     deploy:
@@ -11,7 +11,7 @@ services:
           memory: 256M
 
   frontend:
-    image: marwanmw/cloudmart-frontend:${BUILD_NUMBER}
+    image: marwanmw/cloudmart-frontend:__BUILD_NUMBER__
     ports:
       - "80:80"
     depends_on:

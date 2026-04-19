@@ -49,6 +49,7 @@ pipeline{
         stage('package deployment instructions'){
             steps{
                 sh 'rm -f deploy.zip'
+                sh "sed -i 's/__BUILD_NUMBER__/${BUILD_NUMBER}/g' docker-compose.yml"
                 sh 'zip deploy.zip docker-compose.yml'
             }
         }
